@@ -1,0 +1,99 @@
+# =============================================================================
+# TERRAFORM APPLY ON MERGE TO MAIN
+# Runs terragrunt apply after a PR is merged to main.
+# Requires manual approval via GitHub Environment protection rules.
+#
+# Trigger: Push to main branch (after PR merge)
+# =============================================================================
+
+name: "03 - Terraform Apply"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "modules/**"
+      - "environments/**"
+      - "terragrunt.hcl"
+
+  # Allow manual deployment
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        default: "prod"
+        type: choice
+        options:
+          - prod
+
+permissions:
+  contents: read
+
+env:
+  ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+  ARM_TENANT_ID:       ${{ secrets.ARM_TENANT_ID }}
+  TF_VERSION:          "1.7.5"
+  TG_VERSION:          "0.55.21"
+
+jobs:
+  apply:
+    name: Terragrunt Apply
+    runs-on: ubuntu-latest
+    environment: prod
+    defaults:
+      run:
+        working-directory: environments/prod
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: Setup Terragrunt
+        run: |
+          curl -fsSL -o terragrunt "https://github.com/gruntwork-io/terragrunt/releases/download/v${TG_VERSION}/terragrunt_linux_amd64"
+          chmod +x terragrunt
+          sudo mv terragrunt /usr/local/bin/
+          terragrunt --version
+        working-directory: ${{ github.workspace }}
+
+      - name: Azure Login
+        run: |
+          az login -u "${{ secrets.AZURE_USERNAME }}" -p "${{ secrets.AZURE_PASSWORD }}" --tenant "${{ secrets.ARM_TENANT_ID }}"
+          az account set --subscription "${{ secrets.ARM_SUBSCRIPTION_ID }}"
+
+      - name: Terragrunt Init
+        run: terragrunt run-all init --terragrunt-non-interactive
+
+      - name: Terragrunt Validate
+        run: terragrunt run-all validate --terragrunt-non-interactive
+
+      - name: Terragrunt Plan
+        run: terragrunt run-all plan --terragrunt-non-interactive -no-color
+
+      - name: Terragrunt Apply
+        run: terragrunt run-all apply --terragrunt-non-interactive -auto-approve
+
+      - name: Collect Outputs
+        id: outputs
+        run: |
+          echo "::group::Networking Outputs"
+          cd networking && terragrunt output -json 2>/dev/null || true
+          cd ..
+          echo "::endgroup::"
+
+          echo "::group::AKS Outputs"
+          cd aks && terragrunt output -json 2>/dev/null || true
+          cd ..
+          echo "::endgroup::"
+
+          echo "::group::Shared Services Outputs"
+          cd shared-services && terragrunt output -json 2>/dev/null || true
+          cd ..
+          echo "::endgroup::"

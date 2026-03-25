@@ -1,0 +1,121 @@
+# =============================================================================
+# SETUP TERRAFORM STATE BACKEND
+# Run this workflow ONCE before any other workflow. It creates the Azure
+# Storage Account used by Terragrunt for remote state storage.
+#
+# Trigger: Manual (workflow_dispatch) only
+# =============================================================================
+
+name: "01 - Setup State Backend"
+
+on:
+  workflow_dispatch:
+    inputs:
+      project:
+        description: "Project name"
+        required: true
+        default: "threetier"
+      environment:
+        description: "Environment (prod, staging, dev)"
+        required: true
+        default: "prod"
+      location:
+        description: "Azure region"
+        required: true
+        default: "eastus"
+
+permissions:
+  contents: read
+
+env:
+  ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+  ARM_TENANT_ID:       ${{ secrets.ARM_TENANT_ID }}
+
+jobs:
+  setup-backend:
+    name: Create State Storage Account
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        run: |
+          az login -u "${{ secrets.AZURE_USERNAME }}" -p "${{ secrets.AZURE_PASSWORD }}" --tenant "${{ secrets.ARM_TENANT_ID }}"
+          az account set --subscription "${{ secrets.ARM_SUBSCRIPTION_ID }}"
+
+      - name: Create State Backend Resources
+        env:
+          PROJECT:     ${{ github.event.inputs.project }}
+          ENVIRONMENT: ${{ github.event.inputs.environment }}
+          LOCATION:    ${{ github.event.inputs.location }}
+        run: |
+          set -euo pipefail
+
+          RG_NAME="rg-tfstate-${PROJECT}-${ENVIRONMENT}"
+          SA_NAME="sttfstate${PROJECT}${ENVIRONMENT}"
+          CONTAINER="tfstate"
+
+          echo "=== Terraform State Backend Setup ==="
+          echo "Resource Group : ${RG_NAME}"
+          echo "Storage Account: ${SA_NAME}"
+          echo "Container      : ${CONTAINER}"
+          echo "Location       : ${LOCATION}"
+
+          # Create resource group
+          echo "::group::Creating resource group"
+          az group create \
+            --name "${RG_NAME}" \
+            --location "${LOCATION}" \
+            --output none
+          echo "::endgroup::"
+
+          # Create storage account
+          echo "::group::Creating storage account"
+          az storage account create \
+            --name "${SA_NAME}" \
+            --resource-group "${RG_NAME}" \
+            --location "${LOCATION}" \
+            --sku Standard_LRS \
+            --kind StorageV2 \
+            --min-tls-version TLS1_2 \
+            --allow-blob-public-access false \
+            --https-only true \
+            --output none
+          echo "::endgroup::"
+
+          # Enable blob versioning
+          echo "::group::Enabling blob versioning"
+          az storage account blob-service-properties update \
+            --account-name "${SA_NAME}" \
+            --resource-group "${RG_NAME}" \
+            --enable-versioning true \
+            --output none
+          echo "::endgroup::"
+
+          # Create blob container
+          echo "::group::Creating blob container"
+          az storage container create \
+            --name "${CONTAINER}" \
+            --account-name "${SA_NAME}" \
+            --auth-mode login \
+            --output none
+          echo "::endgroup::"
+
+          # Add delete lock
+          echo "::group::Adding resource group lock"
+          az lock create \
+            --name "tfstate-lock" \
+            --resource-group "${RG_NAME}" \
+            --lock-type CanNotDelete \
+            --notes "Protects Terraform state storage from accidental deletion" \
+            --output none
+          echo "::endgroup::"
+
+          echo "✅ State backend setup complete."
+
+      - name: Azure Logout
+        if: always()
+        run: az logout
