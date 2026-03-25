@@ -10,7 +10,7 @@ name: "03 - Terraform Apply"
 
 on:
   push:
-    branches: [main]
+    branches: [master]
     paths:
       - "modules/**"
       - "environments/**"
