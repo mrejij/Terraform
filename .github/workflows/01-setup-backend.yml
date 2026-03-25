@@ -9,6 +9,10 @@
 name: "01 - Setup State Backend"
 
 on:
+  push:
+    branches: [master]
+    paths:
+      - ".github/workflows/01-setup-backend.yml"
   workflow_dispatch:
     inputs:
       project:
