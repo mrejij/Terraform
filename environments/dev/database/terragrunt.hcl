@@ -18,7 +18,7 @@ dependency "networking" {
     resource_group_name = "mock-rg"
     database_subnet_id  = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/mock-rg/providers/Microsoft.Network/virtualNetworks/mock-vnet/subnets/mock-db-subnet"
   }
-  mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
 }
 
 dependency "dns" {
@@ -27,7 +27,7 @@ dependency "dns" {
   mock_outputs = {
     sql_private_dns_zone_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/mock-rg/providers/Microsoft.Network/privateDnsZones/privatelink.database.windows.net"
   }
-  mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
 }
 
 dependency "shared_services" {
@@ -37,7 +37,7 @@ dependency "shared_services" {
     key_vault_id               = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/mock-rg/providers/Microsoft.KeyVault/vaults/mock-kv"
     log_analytics_workspace_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/mock-rg/providers/Microsoft.OperationalInsights/workspaces/mock-law"
   }
-  mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
 }
 
 inputs = {
@@ -47,11 +47,11 @@ inputs = {
   key_vault_id               = dependency.shared_services.outputs.key_vault_id
   log_analytics_workspace_id = dependency.shared_services.outputs.log_analytics_workspace_id
 
-  # SQL configuration — production grade
+  # SQL configuration
   sql_admin_username        = "sqladmin"
-  sql_database_sku          = "S1"
-  sql_database_max_size_gb  = 50
+  sql_database_sku          = "S0"
+  sql_database_max_size_gb  = 10
   sql_zone_redundant        = false
-  sql_backup_retention_days = 14
+  sql_backup_retention_days = 7
   aad_admin_login           = "sqlaadadmin"
 }

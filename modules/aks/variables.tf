@@ -38,28 +38,26 @@ variable "aks_subnet_id" {
   type        = string
 }
 
-variable "managed_identity_id" {
-  description = "ID of the user-assigned managed identity"
+variable "aks_sp_client_id" {
+  description = "Client ID of the AKS Service Principal"
   type        = string
+  sensitive   = true
 }
 
-variable "managed_identity_principal_id" {
-  description = "Principal ID of the managed identity"
+variable "aks_sp_client_secret" {
+  description = "Client Secret of the AKS Service Principal"
   type        = string
+  sensitive   = true
 }
 
-variable "managed_identity_client_id" {
-  description = "Client ID of the managed identity"
+variable "aks_sp_object_id" {
+  description = "Object ID of the AKS Service Principal (for role assignments)"
   type        = string
+  sensitive   = true
 }
 
 variable "aks_private_dns_zone_id" {
   description = "ID of the AKS private DNS zone"
-  type        = string
-}
-
-variable "acr_id" {
-  description = "ID of the Azure Container Registry"
   type        = string
 }
 
@@ -92,19 +90,31 @@ variable "system_node_count" {
 variable "system_node_vm_size" {
   description = "VM size for system node pool"
   type        = string
-  default     = "Standard_B2s"
+  default     = "Standard_D2ls_v5"
 }
 
-variable "worker_node_count" {
-  description = "Number of nodes in the worker node pool"
+variable "worker_node_min_count" {
+  description = "Minimum number of nodes in the worker pool (autoscaler lower bound)"
   type        = number
-  default     = 1
+  default     = 2
+}
+
+variable "worker_node_max_count" {
+  description = "Maximum number of nodes in the worker pool (autoscaler upper bound)"
+  type        = number
+  default     = 4
 }
 
 variable "worker_node_vm_size" {
   description = "VM size for worker node pool"
   type        = string
-  default     = "Standard_B2ms"
+  default     = "Standard_D4s_v3"
+}
+
+variable "aks_sku_tier" {
+  description = "AKS SKU tier (Free or Standard)"
+  type        = string
+  default     = "Standard"
 }
 
 variable "service_cidr" {
@@ -123,4 +133,9 @@ variable "max_pods_per_node" {
   description = "Maximum number of pods per node"
   type        = number
   default     = 30
+}
+
+variable "tenant_id" {
+  description = "Azure AD tenant ID for AKS RBAC"
+  type        = string
 }

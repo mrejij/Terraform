@@ -232,6 +232,36 @@ resource "azurerm_network_security_rule" "app_allow_jenkins_ui" {
   network_security_group_name = azurerm_network_security_group.app.name
 }
 
+resource "azurerm_network_security_rule" "app_allow_deployer_ssh" {
+  count                       = var.deployer_ip != "" ? 1 : 0
+  name                        = "AllowDeployerSsh"
+  priority                    = 130
+  direction                   = "Inbound"
+  access                      = "Allow"
+  protocol                    = "Tcp"
+  source_port_range           = "*"
+  destination_port_range      = "22"
+  source_address_prefix       = var.deployer_ip
+  destination_address_prefix  = "*"
+  resource_group_name         = azurerm_resource_group.main.name
+  network_security_group_name = azurerm_network_security_group.app.name
+}
+
+resource "azurerm_network_security_rule" "app_allow_deployer_jenkins" {
+  count                       = var.deployer_ip != "" ? 1 : 0
+  name                        = "AllowDeployerJenkins"
+  priority                    = 140
+  direction                   = "Inbound"
+  access                      = "Allow"
+  protocol                    = "Tcp"
+  source_port_range           = "*"
+  destination_port_range      = "8080"
+  source_address_prefix       = var.deployer_ip
+  destination_address_prefix  = "*"
+  resource_group_name         = azurerm_resource_group.main.name
+  network_security_group_name = azurerm_network_security_group.app.name
+}
+
 resource "azurerm_network_security_rule" "app_outbound_to_aks" {
   name                        = "AllowOutboundToAks"
   priority                    = 100

@@ -66,3 +66,9 @@ variable "bastion_subnet_address_prefix" {
   type        = string
   default     = "10.0.4.0/26"
 }
+
+variable "deployer_ip" {
+  description = "Public IP of the deployer for SSH and Jenkins access (CIDR format, e.g. 1.2.3.4/32). Leave empty to skip deployer NSG rules."
+  type        = string
+  default     = ""
+}

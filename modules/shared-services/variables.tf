@@ -30,7 +30,7 @@ variable "tags" {
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
-# SUBNET & IDENTITY REFERENCES
+# SUBNET & BOOTSTRAP KEY VAULT REFERENCES
 # ---------------------------------------------------------------------------------------------------------------------
 
 variable "app_subnet_id" {
@@ -38,8 +38,13 @@ variable "app_subnet_id" {
   type        = string
 }
 
-variable "managed_identity_principal_id" {
-  description = "Principal ID of the shared managed identity"
+variable "bootstrap_key_vault_name" {
+  description = "Name of the bootstrap Key Vault containing SP credentials"
+  type        = string
+}
+
+variable "bootstrap_resource_group" {
+  description = "Resource group of the bootstrap Key Vault"
   type        = string
 }
 
@@ -97,4 +102,16 @@ variable "file_share_quota_gb" {
   description = "Quota in GB for each file share"
   type        = number
   default     = 5
+}
+
+variable "deployer_ip_ranges" {
+  description = "Public IP CIDRs allowed to access Key Vault for Terraform deployments"
+  type        = list(string)
+  default     = []
+}
+
+variable "kv_public_network_access_enabled" {
+  description = "Enable public network access on Key Vault (set false for fully private PE-only access)"
+  type        = bool
+  default     = false
 }

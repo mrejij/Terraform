@@ -38,16 +38,6 @@ variable "database_subnet_id" {
   type        = string
 }
 
-variable "managed_identity_id" {
-  description = "ID of the user-assigned managed identity"
-  type        = string
-}
-
-variable "managed_identity_principal_id" {
-  description = "Principal ID of the managed identity (for AAD admin)"
-  type        = string
-}
-
 variable "sql_private_dns_zone_id" {
   description = "ID of the privatelink.database.windows.net DNS zone"
   type        = string

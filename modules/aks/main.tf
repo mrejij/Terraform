@@ -1,20 +1,20 @@
 # ---------------------------------------------------------------------------------------------------------------------
 # ROLE ASSIGNMENTS (must be created before AKS cluster)
-# The managed identity needs these permissions to manage the private AKS cluster.
+# The AKS Service Principal needs these permissions to manage the private AKS cluster.
 # ---------------------------------------------------------------------------------------------------------------------
 
 # Private DNS Zone Contributor - for AKS to register API server in private DNS
 resource "azurerm_role_assignment" "dns_zone_contributor" {
   scope                = var.aks_private_dns_zone_id
   role_definition_name = "Private DNS Zone Contributor"
-  principal_id         = var.managed_identity_principal_id
+  principal_id         = var.aks_sp_object_id
 }
 
 # Network Contributor on VNet - for AKS to create internal load balancers and manage routes
 resource "azurerm_role_assignment" "vnet_network_contributor" {
   scope                = var.vnet_id
   role_definition_name = "Network Contributor"
-  principal_id         = var.managed_identity_principal_id
+  principal_id         = var.aks_sp_object_id
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -24,6 +24,7 @@ resource "azurerm_role_assignment" "vnet_network_contributor" {
 # - Calico network policy: For granular pod-to-pod traffic control
 # - CSI Secrets Store: Integrates with Azure Key Vault
 # - Azure RBAC: For Kubernetes RBAC via Azure AD
+# - Service Principal: Uses pre-created AKS SP for cluster identity
 # ---------------------------------------------------------------------------------------------------------------------
 
 resource "azurerm_kubernetes_cluster" "main" {
@@ -34,8 +35,9 @@ resource "azurerm_kubernetes_cluster" "main" {
   kubernetes_version        = var.kubernetes_version
   private_cluster_enabled   = true
   private_dns_zone_id       = var.aks_private_dns_zone_id
-  sku_tier                  = "Free"
+  sku_tier                  = var.aks_sku_tier
   local_account_disabled    = false
+  oidc_issuer_enabled       = true
 
   default_node_pool {
     name                = "system"
@@ -52,9 +54,9 @@ resource "azurerm_kubernetes_cluster" "main" {
     }
   }
 
-  identity {
-    type         = "UserAssigned"
-    identity_ids = [var.managed_identity_id]
+  service_principal {
+    client_id     = var.aks_sp_client_id
+    client_secret = var.aks_sp_client_secret
   }
 
   network_profile {
@@ -77,7 +79,7 @@ resource "azurerm_kubernetes_cluster" "main" {
 
   azure_active_directory_role_based_access_control {
     azure_rbac_enabled = true
-    managed            = true
+    tenant_id          = var.tenant_id
   }
 
   tags = var.tags
@@ -96,16 +98,18 @@ resource "azurerm_kubernetes_cluster" "main" {
 
 # ---------------------------------------------------------------------------------------------------------------------
 # WORKER NODE POOL
-# Dedicated pool for application workloads (frontend + backend microservices)
+# Dedicated pool for application workloads, separate from system components
 # ---------------------------------------------------------------------------------------------------------------------
 
 resource "azurerm_kubernetes_cluster_node_pool" "worker" {
   name                  = "worker"
   kubernetes_cluster_id = azurerm_kubernetes_cluster.main.id
   vm_size               = var.worker_node_vm_size
-  node_count            = var.worker_node_count
+  auto_scaling_enabled  = true
+  min_count             = var.worker_node_min_count
+  max_count             = var.worker_node_max_count
   vnet_subnet_id        = var.aks_subnet_id
-  os_disk_size_gb       = 64
+  os_disk_size_gb       = 128
   os_disk_type          = "Managed"
   max_pods              = var.max_pods_per_node
 
@@ -114,17 +118,12 @@ resource "azurerm_kubernetes_cluster_node_pool" "worker" {
   }
 
   tags = var.tags
-}
 
-# ---------------------------------------------------------------------------------------------------------------------
-# ACR PULL ROLE FOR KUBELET IDENTITY
-# AKS auto-creates a kubelet identity; we grant it ACRPull so pods can pull images.
-# ---------------------------------------------------------------------------------------------------------------------
-
-resource "azurerm_role_assignment" "aks_acr_pull" {
-  scope                = var.acr_id
-  role_definition_name = "AcrPull"
-  principal_id         = azurerm_kubernetes_cluster.main.kubelet_identity[0].object_id
+  lifecycle {
+    ignore_changes = [
+      node_count
+    ]
+  }
 }
 
 # ---------------------------------------------------------------------------------------------------------------------

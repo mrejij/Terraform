@@ -1,6 +1,6 @@
 # ---------------------------------------------------------------------------------------------------------------------
 # AKS MODULE - Private AKS Cluster with System + Worker Node Pools
-# Depends on: networking, dns, shared-services (AKS SP creds + LAW)
+# Depends on: networking, dns, shared-services (AKS SP creds + ACR + LAW)
 # This should be deployed last after all dependencies are in place.
 # ---------------------------------------------------------------------------------------------------------------------
 
@@ -20,16 +20,16 @@ dependency "networking" {
     aks_subnet_id       = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/mock-rg/providers/Microsoft.Network/virtualNetworks/mock-vnet/subnets/mock-aks-subnet"
     vnet_id             = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/mock-rg/providers/Microsoft.Network/virtualNetworks/mock-vnet"
   }
-  mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
 }
 
 dependency "dns" {
   config_path = "../dns"
 
   mock_outputs = {
-    aks_private_dns_zone_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/mock-rg/providers/Microsoft.Network/privateDnsZones/privatelink.eastus.azmk8s.io"
+    aks_private_dns_zone_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/mock-rg/providers/Microsoft.Network/privateDnsZones/privatelink.centralindia.azmk8s.io"
   }
-  mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
 }
 
 dependency "shared_services" {
@@ -41,7 +41,7 @@ dependency "shared_services" {
     aks_sp_client_secret       = "mock-secret"
     aks_sp_object_id           = "00000000-0000-0000-0000-000000000000"
   }
-  mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
 }
 
 inputs = {
@@ -56,7 +56,7 @@ inputs = {
   aks_sp_client_secret = dependency.shared_services.outputs.aks_sp_client_secret
   aks_sp_object_id     = dependency.shared_services.outputs.aks_sp_object_id
 
-  # AKS cluster configuration — production grade
+  # AKS cluster configuration
   kubernetes_version    = "1.31.0"
   system_node_count     = 1
   system_node_vm_size   = "Standard_D2ls_v5"

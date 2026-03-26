@@ -19,7 +19,7 @@ dependency "networking" {
     resource_group_name = "mock-rg"
     app_subnet_id       = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/mock-rg/providers/Microsoft.Network/virtualNetworks/mock-vnet/subnets/mock-app-subnet"
   }
-  mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
 }
 
 dependency "dns" {
@@ -31,7 +31,7 @@ dependency "dns" {
     storage_blob_private_dns_zone_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/mock-rg/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net"
     storage_file_private_dns_zone_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/mock-rg/providers/Microsoft.Network/privateDnsZones/privatelink.file.core.windows.net"
   }
-  mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
 }
 
 inputs = {
@@ -44,10 +44,7 @@ inputs = {
   storage_blob_private_dns_zone_id = dependency.dns.outputs.storage_blob_private_dns_zone_id
   storage_file_private_dns_zone_id = dependency.dns.outputs.storage_file_private_dns_zone_id
 
-  # Key Vault — fully private via PE in prod (no public access)
-  kv_public_network_access_enabled = false
-
-  # Production overrides
-  log_retention_days       = 90
-  storage_replication_type = "GRS"
+  # Key Vault config — public access with deployer IP for dev (use PE-only in prod)
+  kv_public_network_access_enabled = true
+  deployer_ip_ranges               = ["163.116.213.95/32"]
 }

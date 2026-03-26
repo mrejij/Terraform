@@ -38,11 +38,6 @@ variable "app_subnet_id" {
   type        = string
 }
 
-variable "managed_identity_id" {
-  description = "ID of the user-assigned managed identity"
-  type        = string
-}
-
 variable "key_vault_id" {
   description = "ID of the Key Vault for storing secrets"
   type        = string
@@ -55,7 +50,7 @@ variable "key_vault_id" {
 variable "linux_vm_size" {
   description = "VM size for the Linux build server"
   type        = string
-  default     = "Standard_B2s"
+  default     = "Standard_D2ls_v5"
 }
 
 variable "linux_admin_username" {
@@ -83,7 +78,7 @@ variable "linux_data_disk_size_gb" {
 variable "windows_vm_size" {
   description = "VM size for the Windows access server"
   type        = string
-  default     = "Standard_B2s"
+  default     = "Standard_D2ls_v5"
 }
 
 variable "windows_admin_username" {
@@ -96,5 +91,6 @@ variable "windows_os_disk_size_gb" {
   description = "OS disk size in GB for the Windows VM"
   type        = number
   default     = 128
-  # Windows Server minimum is 127GB; keeping at 128
 }
+
+

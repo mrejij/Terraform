@@ -58,3 +58,22 @@ output "random_suffix" {
   description = "Random suffix used for globally unique resource names"
   value       = random_string.suffix.result
 }
+
+# AKS Service Principal outputs (sourced from bootstrap Key Vault)
+output "aks_sp_client_id" {
+  description = "AKS Service Principal Client ID"
+  value       = data.azurerm_key_vault_secret.aks_sp_client_id.value
+  sensitive   = true
+}
+
+output "aks_sp_client_secret" {
+  description = "AKS Service Principal Client Secret"
+  value       = data.azurerm_key_vault_secret.aks_sp_client_secret.value
+  sensitive   = true
+}
+
+output "aks_sp_object_id" {
+  description = "AKS Service Principal Object ID"
+  value       = data.azurerm_key_vault_secret.aks_sp_object_id.value
+  sensitive   = true
+}

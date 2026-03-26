@@ -19,16 +19,6 @@ output "aks_kube_config_raw" {
   sensitive   = true
 }
 
-output "aks_kubelet_identity_object_id" {
-  description = "Object ID of the AKS kubelet managed identity"
-  value       = azurerm_kubernetes_cluster.main.kubelet_identity[0].object_id
-}
-
-output "aks_kubelet_identity_client_id" {
-  description = "Client ID of the AKS kubelet managed identity"
-  value       = azurerm_kubernetes_cluster.main.kubelet_identity[0].client_id
-}
-
 output "aks_node_resource_group" {
   description = "Auto-generated resource group for AKS node resources"
   value       = azurerm_kubernetes_cluster.main.node_resource_group

@@ -40,11 +40,11 @@ generate "provider" {
         }
       }
 
-      # Use Azure CLI authentication (az login with user credentials)
-      # No Service Principal required — the provider uses the active CLI session.
-      use_cli         = true
+      # Service Principal authentication (credentials from env vars)
       subscription_id = "${get_env("ARM_SUBSCRIPTION_ID", "")}"
       tenant_id       = "${get_env("ARM_TENANT_ID", "")}"
+      client_id       = "${get_env("ARM_CLIENT_ID", "")}"
+      client_secret   = "${get_env("ARM_CLIENT_SECRET", "")}"
     }
   EOF
 }
@@ -79,4 +79,7 @@ inputs = {
   location_short      = local.location_short
   tags                = local.tags
   resource_group_name = "rg-${local.project}-${local.environment}-${local.location_short}"
+  tenant_id                = "${get_env("ARM_TENANT_ID", "")}"
+  bootstrap_key_vault_name = "${get_env("BOOTSTRAP_KEY_VAULT_NAME", "")}"
+  bootstrap_resource_group = "${get_env("BOOTSTRAP_RESOURCE_GROUP", "")}"
 }

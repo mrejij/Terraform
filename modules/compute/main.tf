@@ -9,22 +9,9 @@ resource "tls_private_key" "linux_ssh" {
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
-# WINDOWS ADMIN PASSWORD (auto-generated, stored in Key Vault)
-# ---------------------------------------------------------------------------------------------------------------------
-
-resource "random_password" "windows_admin" {
-  length           = 24
-  special          = true
-  override_special = "!@#$%&*()-_=+[]{}|:,.?"
-  min_lower        = 4
-  min_upper        = 4
-  min_numeric      = 4
-  min_special      = 4
-}
-
-# ---------------------------------------------------------------------------------------------------------------------
 # LINUX VM - BUILD & DEPLOYMENT SERVER
 # Jenkins, Helm, kubectl, k9s, Docker, ACR CLI will be installed on this server
+# Production: No public IP — access via Azure Bastion only
 # ---------------------------------------------------------------------------------------------------------------------
 
 resource "azurerm_network_interface" "linux" {
@@ -51,11 +38,6 @@ resource "azurerm_linux_virtual_machine" "build_server" {
   disable_password_authentication = true
 
   network_interface_ids = [azurerm_network_interface.linux.id]
-
-  identity {
-    type         = "UserAssigned"
-    identity_ids = [var.managed_identity_id]
-  }
 
   admin_ssh_key {
     username   = var.linux_admin_username
@@ -98,9 +80,19 @@ resource "azurerm_virtual_machine_data_disk_attachment" "linux_data" {
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
-# WINDOWS VM - ACCESS SERVER
-# For accessing application UI, Jenkins dashboard, and other web UIs via browser
+# WINDOWS VM - ACCESS / MANAGEMENT SERVER
+# Access via Azure Bastion only (no public IP)
 # ---------------------------------------------------------------------------------------------------------------------
+
+resource "random_password" "windows_admin" {
+  length           = 24
+  special          = true
+  override_special = "!@#$%&*()-_=+[]{}|:,.?"
+  min_lower        = 4
+  min_upper        = 4
+  min_numeric      = 4
+  min_special      = 4
+}
 
 resource "azurerm_network_interface" "windows" {
   name                = "nic-vm-win-${var.project}-${var.environment}-${var.location_short}"
@@ -117,20 +109,14 @@ resource "azurerm_network_interface" "windows" {
 }
 
 resource "azurerm_windows_virtual_machine" "access_server" {
-  name                = "vm-win-${var.project}-${var.environment}-${var.location_short}"
-  computer_name       = "VMWIN${upper(var.environment)}"
-  resource_group_name = var.resource_group_name
-  location            = var.location
-  size                = var.windows_vm_size
-  admin_username      = var.windows_admin_username
-  admin_password      = random_password.windows_admin.result
-
+  name                  = "vm-win-${var.project}-${var.environment}-${var.location_short}"
+  computer_name         = "vmwin${var.environment}"
+  resource_group_name   = var.resource_group_name
+  location              = var.location
+  size                  = var.windows_vm_size
+  admin_username        = var.windows_admin_username
+  admin_password        = random_password.windows_admin.result
   network_interface_ids = [azurerm_network_interface.windows.id]
-
-  identity {
-    type         = "UserAssigned"
-    identity_ids = [var.managed_identity_id]
-  }
 
   os_disk {
     name                 = "osdisk-vm-win-${var.project}-${var.environment}"
@@ -182,3 +168,5 @@ resource "azurerm_key_vault_secret" "windows_admin_password" {
   value        = random_password.windows_admin.result
   key_vault_id = var.key_vault_id
 }
+
+

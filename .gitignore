@@ -1,0 +1,40 @@
+# Terragrunt cache
+**/.terragrunt-cache/
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraform.lock.hcl
+
+# Generated provider/backend files (created by Terragrunt)
+**/provider.tf
+**/backend.tf
+
+# Environment / secrets
+*.tfvars
+!*.auto.tfvars
+.env
+*.env
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store
+._*
+
+# IDE
+.vscode/
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~

@@ -2,6 +2,8 @@
 # SQL ADMIN PASSWORD (auto-generated, stored in Key Vault)
 # ---------------------------------------------------------------------------------------------------------------------
 
+data "azurerm_client_config" "current" {}
+
 resource "random_password" "sql_admin" {
   length           = 32
   special          = true
@@ -30,15 +32,12 @@ resource "azurerm_mssql_server" "main" {
 
   azuread_administrator {
     login_username = var.aad_admin_login
-    object_id      = var.managed_identity_principal_id
+    object_id      = data.azurerm_client_config.current.object_id
   }
 
   identity {
-    type         = "UserAssigned"
-    identity_ids = [var.managed_identity_id]
+    type = "SystemAssigned"
   }
-
-  primary_user_assigned_identity_id = var.managed_identity_id
 
   tags = var.tags
 }

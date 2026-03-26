@@ -1,5 +1,30 @@
 data "azurerm_client_config" "current" {}
 
+# ---------------------------------------------------------------------------------------------------------------------
+# BOOTSTRAP KEY VAULT - Read AKS Service Principal credentials
+# The bootstrap KV is pre-created by scripts/setup-bootstrap.sh
+# ---------------------------------------------------------------------------------------------------------------------
+
+data "azurerm_key_vault" "bootstrap" {
+  name                = var.bootstrap_key_vault_name
+  resource_group_name = var.bootstrap_resource_group
+}
+
+data "azurerm_key_vault_secret" "aks_sp_client_id" {
+  name         = "aks-sp-client-id"
+  key_vault_id = data.azurerm_key_vault.bootstrap.id
+}
+
+data "azurerm_key_vault_secret" "aks_sp_client_secret" {
+  name         = "aks-sp-client-secret"
+  key_vault_id = data.azurerm_key_vault.bootstrap.id
+}
+
+data "azurerm_key_vault_secret" "aks_sp_object_id" {
+  name         = "aks-sp-object-id"
+  key_vault_id = data.azurerm_key_vault.bootstrap.id
+}
+
 resource "random_string" "suffix" {
   length  = 4
   special = false
@@ -62,17 +87,17 @@ resource "azurerm_private_endpoint" "acr" {
   tags = var.tags
 }
 
-# ACRPull + ACRPush roles for the shared managed identity (Jenkins, AKS)
+# ACRPull + ACRPush roles for the AKS Service Principal
 resource "azurerm_role_assignment" "acr_pull" {
   scope                = azurerm_container_registry.main.id
   role_definition_name = "AcrPull"
-  principal_id         = var.managed_identity_principal_id
+  principal_id         = data.azurerm_key_vault_secret.aks_sp_object_id.value
 }
 
 resource "azurerm_role_assignment" "acr_push" {
   scope                = azurerm_container_registry.main.id
   role_definition_name = "AcrPush"
-  principal_id         = var.managed_identity_principal_id
+  principal_id         = data.azurerm_key_vault_secret.aks_sp_object_id.value
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -87,12 +112,13 @@ resource "azurerm_key_vault" "main" {
   sku_name                      = "standard"
   soft_delete_retention_days    = 7
   purge_protection_enabled      = false
-  public_network_access_enabled = false
-  enable_rbac_authorization     = true
+  public_network_access_enabled = var.kv_public_network_access_enabled
+  rbac_authorization_enabled    = true
 
   network_acls {
     default_action = "Deny"
     bypass         = "AzureServices"
+    ip_rules       = var.deployer_ip_ranges
   }
 
   tags = var.tags
@@ -119,25 +145,18 @@ resource "azurerm_private_endpoint" "kv" {
   tags = var.tags
 }
 
-# Key Vault Secrets Officer for the managed identity
-resource "azurerm_role_assignment" "kv_secrets_officer" {
+# Key Vault Secrets User for the AKS SP (CSI secrets store driver)
+resource "azurerm_role_assignment" "kv_secrets_user_aks_sp" {
   scope                = azurerm_key_vault.main.id
-  role_definition_name = "Key Vault Secrets Officer"
-  principal_id         = var.managed_identity_principal_id
+  role_definition_name = "Key Vault Secrets User"
+  principal_id         = data.azurerm_key_vault_secret.aks_sp_object_id.value
 }
 
-# Key Vault Secrets Officer for the Terraform deployer (to create secrets)
+# Key Vault Secrets Officer for the Terraform deployer SP (to create secrets)
 resource "azurerm_role_assignment" "kv_secrets_officer_deployer" {
   scope                = azurerm_key_vault.main.id
   role_definition_name = "Key Vault Secrets Officer"
   principal_id         = data.azurerm_client_config.current.object_id
-}
-
-# Key Vault Crypto Officer for the managed identity (encryption keys)
-resource "azurerm_role_assignment" "kv_crypto_officer" {
-  scope                = azurerm_key_vault.main.id
-  role_definition_name = "Key Vault Crypto Officer"
-  principal_id         = var.managed_identity_principal_id
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -164,10 +183,10 @@ resource "azurerm_storage_account" "main" {
 }
 
 resource "azurerm_storage_share" "shares" {
-  for_each             = toset(var.file_share_names)
-  name                 = each.value
-  storage_account_name = azurerm_storage_account.main.name
-  quota                = var.file_share_quota_gb
+  for_each           = toset(var.file_share_names)
+  name               = each.value
+  storage_account_id = azurerm_storage_account.main.id
+  quota              = var.file_share_quota_gb
 }
 
 resource "azurerm_private_endpoint" "storage_blob" {
@@ -212,18 +231,18 @@ resource "azurerm_private_endpoint" "storage_file" {
   tags = var.tags
 }
 
-# Storage Blob Data Contributor for the managed identity
+# Storage Blob Data Contributor for the AKS SP
 resource "azurerm_role_assignment" "storage_blob_contributor" {
   scope                = azurerm_storage_account.main.id
   role_definition_name = "Storage Blob Data Contributor"
-  principal_id         = var.managed_identity_principal_id
+  principal_id         = data.azurerm_key_vault_secret.aks_sp_object_id.value
 }
 
-# Storage File Data SMB Share Contributor for managed identity (pod mounts)
+# Storage File Data SMB Share Contributor for AKS SP (pod mounts)
 resource "azurerm_role_assignment" "storage_file_contributor" {
   scope                = azurerm_storage_account.main.id
   role_definition_name = "Storage File Data SMB Share Contributor"
-  principal_id         = var.managed_identity_principal_id
+  principal_id         = data.azurerm_key_vault_secret.aks_sp_object_id.value
 }
 
 # Diagnostic settings for Key Vault
